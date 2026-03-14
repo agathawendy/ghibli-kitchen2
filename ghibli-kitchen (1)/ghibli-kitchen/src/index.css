@@ -1,0 +1,19 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", serif;
+}
+
+body {
+  @apply bg-orange-50/30 text-stone-800 font-sans;
+}
+
+.ghibli-gradient {
+  background: linear-gradient(135deg, #FF9D6C 0%, #FFD05B 100%);
+}
+
+.pastel-bg {
+  background: linear-gradient(180deg, #FFF9F2 0%, #FFF1E6 100%);
+}
