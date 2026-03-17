@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'main.dart'; // Certifique-se de que o themeNotifier está acessível aqui
 
 class ProfileTab extends StatefulWidget {
   final Map<String, dynamic>? userData;
@@ -12,6 +13,9 @@ class ProfileTab extends StatefulWidget {
   final List<Map<String, dynamic>> favoriteRecipes;
   final VoidCallback? onLogout;
   final VoidCallback? onRefresh;
+  final List<Map<String, dynamic>> totalRecipesList;
+  final Function(String) onToggleFavorite;
+  final Set<String> favoriteIds;
 
   const ProfileTab({
     super.key,
@@ -22,6 +26,9 @@ class ProfileTab extends StatefulWidget {
     required this.favoriteRecipes,
     this.onLogout,
     this.onRefresh,
+    required this.totalRecipesList,
+    required this.onToggleFavorite,
+    required this.favoriteIds,
   });
 
   @override
@@ -40,115 +47,156 @@ class _ProfileTabState extends State<ProfileTab> {
   }
 
   @override
-  void didUpdateWidget(ProfileTab oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.userData?['full_name'] != widget.userData?['full_name']) {
-      _nameController.text = widget.userData?['full_name'] ?? '';
-    }
-  }
-
-  @override
   void dispose() {
     _nameController.dispose();
     super.dispose();
   }
 
-  Future<void> _pickAndUploadImage() async {
-    final picker = ImagePicker();
-    final XFile? image = await picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 512,
-      maxHeight: 512,
-      imageQuality: 75,
+  // --- FUNÇÕES DE DIÁLOGO ---
+
+  void _showSettingsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Configurações'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const ListTile(
+              title: Text('Notificações Mágicas'),
+              trailing: Icon(Icons.notifications_active, color: Colors.orange),
+            ),
+            const Divider(),
+            // AQUI ESTÁ A OPÇÃO DE ESCOLHA DO TEMA
+            ValueListenableBuilder<ThemeMode>(
+              valueListenable: themeNotifier,
+              builder: (context, currentMode, _) {
+                return SwitchListTile(
+                  title: const Text('Modo Noturno'),
+                  secondary: Icon(
+                    currentMode == ThemeMode.dark ? Icons.dark_mode : Icons.light_mode,
+                    color: Colors.orange,
+                  ),
+                  value: currentMode == ThemeMode.dark,
+                  onChanged: (isDark) {
+                    themeNotifier.value = isDark ? ThemeMode.dark : ThemeMode.light;
+                  },
+                  activeColor: Colors.orange,
+                );
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Fechar', style: TextStyle(color: Colors.orange)),
+          ),
+        ],
+      ),
     );
-
-    if (image == null) return;
-
-    setState(() => _isSaving = true);
-
-    try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) return;
-
-      final fileExt = image.path.split('.').last;
-      final fileName = '${user.id}/${DateTime.now().millisecondsSinceEpoch}.$fileExt';
-      final filePath = fileName;
-
-      // Upload image to Supabase Storage
-      if (kIsWeb) {
-        final bytes = await image.readAsBytes();
-        await Supabase.instance.client.storage.from('avatars').uploadBinary(
-              filePath,
-              bytes,
-              fileOptions: const FileOptions(upsert: true),
-            );
-      } else {
-        await Supabase.instance.client.storage.from('avatars').upload(
-              filePath,
-              File(image.path),
-              fileOptions: const FileOptions(upsert: true),
-            );
-      }
-
-      // Get public URL
-      final avatarUrl = Supabase.instance.client.storage
-          .from('avatars')
-          .getPublicUrl(filePath);
-
-      // Update profiles table
-      await Supabase.instance.client.from('profiles').upsert({
-        'id': user.id,
-        'avatar_url': avatarUrl,
-        'updated_at': DateTime.now().toIso8601String(),
-      });
-
-      if (widget.onRefresh != null) widget.onRefresh!();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Foto de perfil atualizada!')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao atualizar foto: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
-    }
   }
 
-  Future<void> _saveProfile() async {
-    final name = _nameController.text.trim();
-    if (name.isEmpty) return;
+  void _showSupportDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Ajuda & Suporte'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.email_outlined, color: Colors.orange),
+              title: Text('Email'),
+              subtitle: Text('suporte@ghiblikitchen.com'),
+            ),
+            Text('\nO Totoro responderá o mais rápido possível! ✉️'),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Entendi')),
+        ],
+      ),
+    );
+  }
 
+  void _showAboutDialog(BuildContext context) {
+    showAboutDialog(
+      context: context,
+      applicationName: 'Ghibli Kitchen',
+      applicationVersion: '1.2.0',
+      applicationIcon: const Icon(Icons.restaurant_menu, color: Colors.orange),
+      children: [
+        const Text('Um catálogo de receitas mágicas inspiradas no Studio Ghibli. Desenvolvido com carinho para fãs.'),
+      ],
+    );
+  }
+
+  void _showFeedbackDialog(BuildContext context) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Enviar Sugestão'),
+        content: TextField(
+          controller: controller,
+          maxLines: 4,
+          decoration: InputDecoration(
+            hintText: 'Qual receita você quer ver aqui?',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            onPressed: () async {
+              final content = controller.text.trim();
+              if (content.isEmpty) return;
+              try {
+                final user = Supabase.instance.client.auth.currentUser;
+                await Supabase.instance.client.from('suggestions').insert({
+                  'user_id': user?.id,
+                  'user_name': widget.userData?['full_name'] ?? 'Usuário Anônimo',
+                  'content': content,
+                });
+                if (mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sugestão enviada para o Totoro!')));
+                }
+              } catch (e) {
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+              }
+            },
+            child: const Text('Enviar', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- LÓGICA DE UPLOAD E SALVAR PERFIL ---
+
+  Future<void> _pickAndUploadImage() async {
+    final picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery, maxWidth: 512, maxHeight: 512);
+    if (image == null) return;
     setState(() => _isSaving = true);
-
     try {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) return;
-
-      await Supabase.instance.client.from('profiles').upsert({
-        'id': user.id,
-        'full_name': name,
-        'updated_at': DateTime.now().toIso8601String(),
-      });
-
-      setState(() => _isEditing = false);
+      final fileName = '${user.id}/${DateTime.now().millisecondsSinceEpoch}.jpg';
+      if (kIsWeb) {
+        final bytes = await image.readAsBytes();
+        await Supabase.instance.client.storage.from('avatars').uploadBinary(fileName, bytes);
+      } else {
+        await Supabase.instance.client.storage.from('avatars').upload(fileName, File(image.path));
+      }
+      final avatarUrl = Supabase.instance.client.storage.from('avatars').getPublicUrl(fileName);
+      await Supabase.instance.client.from('profiles').upsert({'id': user.id, 'avatar_url': avatarUrl});
       if (widget.onRefresh != null) widget.onRefresh!();
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Perfil atualizado com sucesso!')),
-        );
-      }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao salvar perfil: $e')),
-        );
-      }
+      debugPrint("Erro upload: $e");
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -156,262 +204,79 @@ class _ProfileTabState extends State<ProfileTab> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final String displayName = widget.userData?['full_name'] ?? 'Fã do Studio Ghibli';
     final String? avatarUrl = widget.userData?['avatar_url'];
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFFFFF9F2), Color(0xFFFFF1E6)],
+          colors: isDark 
+            ? [const Color(0xFF121212), const Color(0xFF1E1E1E)] 
+            : [const Color(0xFFFFF9F2), const Color(0xFFFFF1E6)],
         ),
       ),
       child: CustomScrollView(
         slivers: [
-          const SliverAppBar(
+          SliverAppBar(
             expandedHeight: 180,
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
-              title: Text('Meu Perfil'),
+              title: Text('Meu Perfil', style: TextStyle(color: isDark ? Colors.white : Colors.white)),
               centerTitle: true,
             ),
-            backgroundColor: Color(0xFFFF9D6C),
+            backgroundColor: const Color(0xFFFF9D6C),
           ),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
+                  // Avatar
                   Stack(
                     alignment: Alignment.bottomRight,
                     children: [
-                      Container(
-                        width: 110,
-                        height: 110,
-                        decoration: BoxDecoration(
-                          color: Colors.orange.withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.orange.shade200, width: 3),
-                          boxShadow: [
-                            BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)
-                          ],
-                        ),
-                        child: ClipOval(
-                          child: avatarUrl != null
-                              ? Image.network(
-                                  avatarUrl,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => const Center(
-                                      child: Text('👤', style: TextStyle(fontSize: 50))),
-                                )
-                              : const Center(
-                                  child: Text('👤', style: TextStyle(fontSize: 50))),
-                        ),
+                      CircleAvatar(
+                        radius: 55,
+                        backgroundColor: Colors.orange.shade100,
+                        backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                        child: avatarUrl == null ? const Icon(Icons.person, size: 50, color: Colors.orange) : null,
                       ),
-                      if (_isSaving)
-                        const Positioned.fill(
-                          child: Center(
-                            child: CircularProgressIndicator(color: Colors.orange),
-                          ),
-                        )
-                      else
-                        GestureDetector(
-                          onTap: _pickAndUploadImage,
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: const BoxDecoration(
-                              color: Colors.orange,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.camera_alt, color: Colors.white, size: 18),
-                          ),
-                        ),
+                      GestureDetector(
+                        onTap: _pickAndUploadImage,
+                        child: const CircleAvatar(radius: 18, backgroundColor: Colors.orange, child: Icon(Icons.camera_alt, color: Colors.white, size: 18)),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
-                  if (_isEditing)
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _nameController,
-                            decoration: InputDecoration(
-                              hintText: 'Seu nome mágico',
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                            ),
-                            autofocus: true,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.check, color: Colors.green),
-                          onPressed: _saveProfile,
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close, color: Colors.red),
-                          onPressed: () => setState(() => _isEditing = false),
-                        ),
-                      ],
-                    )
-                  else
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          displayName,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF4E342E),
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.edit, size: 18, color: Colors.grey),
-                          onPressed: () => setState(() => _isEditing = true),
-                        ),
-                      ],
-                    ),
-                  Text(
-                    'Membro da Cozinha Mágica',
-                    style: TextStyle(color: Colors.brown[600]),
-                  ),
+                  Text(displayName, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 24),
 
-                  // Estatísticas
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withValues(alpha: 0.1),
-                          blurRadius: 15,
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        const Text(
-                          'Estatísticas',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF4E342E),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            _buildStatItem(Icons.favorite,
-                                widget.favoriteCount.toString(), 'Favoritos'),
-                            _buildStatItem(Icons.restaurant,
-                                widget.totalRecipes.toString(), 'Receitas'),
-                            _buildStatItem(
-                                Icons.movie, widget.totalMovies.toString(), 'Filmes'),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
+                  // Estatísticas (Cartão Gordinho)
+                  _buildSectionContainer(isDark, child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildStatItem(Icons.favorite, widget.favoriteCount.toString(), 'Favoritos'),
+                      _buildStatItem(Icons.restaurant, widget.totalRecipes.toString(), 'Receitas'),
+                      _buildStatItem(Icons.movie, widget.totalMovies.toString(), 'Filmes'),
+                    ],
+                  )),
+                  
                   const SizedBox(height: 20),
 
-                  // Conquistas
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withValues(alpha: 0.1),
-                          blurRadius: 15,
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Conquistas Ghibli',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF4E342E),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildAchievement(
-                          '🥚',
-                          'Aprendiz de Cozinha',
-                          widget.favoriteCount >= 1,
-                        ),
-                        const Divider(height: 20),
-                        _buildAchievement(
-                          '🍳',
-                          'Chef do Castelo',
-                          widget.favoriteCount >= 3,
-                        ),
-                        const Divider(height: 20),
-                        _buildAchievement(
-                          '👨‍🍳',
-                          'Mestre Gastronômico',
-                          widget.favoriteCount >= 5,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Menu
-                  _buildMenuItem(
-                    Icons.settings,
-                    'Configurações',
-                    () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Configurações em breve!')),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  _buildMenuItem(
-                    Icons.help_outline,
-                    'Ajuda & Suporte',
-                    () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Suporte em breve!')),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  _buildMenuItem(
-                    Icons.info_outline,
-                    'Sobre o App',
-                    () {
-                      showAboutDialog(
-                        context: context,
-                        applicationName: 'Ghibli Kitchen',
-                        applicationVersion: '1.0.0',
-                        applicationLegalese: 'Inspirado nas obras do Studio Ghibli',
-                      );
-                    },
-                  ),
+                  // Menu de Opções
+                  _buildMenuItem(Icons.settings, 'Configurações', isDark, () => _showSettingsDialog(context)),
+                  _buildMenuItem(Icons.help_outline, 'Ajuda & Suporte', isDark, () => _showSupportDialog(context)),
+                  _buildMenuItem(Icons.info_outline, 'Sobre o App', isDark, () => _showAboutDialog(context)),
+                  _buildMenuItem(Icons.feedback_outlined, 'Enviar Sugestão', isDark, () => _showFeedbackDialog(context)),
+                  
                   const SizedBox(height: 12),
-                  _buildMenuItemColored(
-                    Icons.logout,
-                    'Sair da Conta',
-                    Colors.red.shade400,
-                    () async {
-                      await Supabase.instance.client.auth.signOut();
-                      if (widget.onLogout != null) widget.onLogout!();
-                    },
-                  ),
-                  const SizedBox(height: 30),
+                  _buildMenuItem(Icons.logout, 'Sair da Conta', isDark, () async {
+                    await Supabase.instance.client.auth.signOut();
+                    if (widget.onLogout != null) widget.onLogout!();
+                  }, isExit: true),
                 ],
               ),
             ),
@@ -421,75 +286,42 @@ class _ProfileTabState extends State<ProfileTab> {
     );
   }
 
+  // --- WIDGETS AUXILIARES ---
+
+  Widget _buildSectionContainer(bool isDark, {required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF2C2C2C) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+      ),
+      child: child,
+    );
+  }
+
+  Widget _buildMenuItem(IconData icon, String title, bool isDark, VoidCallback onTap, {bool isExit = false}) {
+    return Card(
+      elevation: 0,
+      color: isDark ? const Color(0xFF2C2C2C) : Colors.white,
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: ListTile(
+        leading: Icon(icon, color: isExit ? Colors.red : Colors.orange),
+        title: Text(title, style: TextStyle(color: isExit ? Colors.red : (isDark ? Colors.white : Colors.black87))),
+        trailing: const Icon(Icons.chevron_right, size: 18),
+        onTap: onTap,
+      ),
+    );
+  }
+
   Widget _buildStatItem(IconData icon, String value, String label) {
     return Column(
       children: [
-        Icon(icon, color: Colors.orange),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
-        ),
+        Icon(icon, color: Colors.orange, size: 20),
+        Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
       ],
-    );
-  }
-
-  Widget _buildAchievement(String emoji, String title, bool unlocked) {
-    return Row(
-      children: [
-        Text(emoji, style: const TextStyle(fontSize: 24)),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            title,
-            style: TextStyle(
-              fontWeight: unlocked ? FontWeight.bold : FontWeight.normal,
-              color: unlocked ? const Color(0xFF4E342E) : Colors.grey[400],
-            ),
-          ),
-        ),
-        Icon(
-          unlocked ? Icons.stars : Icons.lock_outline,
-          color: unlocked ? Colors.orange : Colors.grey[300],
-          size: 20,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMenuItem(IconData icon, String title, VoidCallback onTap) {
-    return _buildMenuItemColored(icon, title, Colors.orange, onTap);
-  }
-
-  Widget _buildMenuItemColored(IconData icon, String title, Color color, VoidCallback onTap) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.05),
-            blurRadius: 10,
-          ),
-        ],
-      ),
-      child: ListTile(
-        leading: Icon(icon, color: color),
-        title: Text(title, style: TextStyle(color: color == Colors.orange ? Colors.black87 : color, fontWeight: color == Colors.orange ? FontWeight.normal : FontWeight.w600)),
-        trailing: Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey[400]),
-        onTap: onTap,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      ),
     );
   }
 }

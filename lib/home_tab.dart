@@ -1,3 +1,4 @@
+import 'suggestion_page.dart';
 import 'package:flutter/material.dart';
 import 'category_page.dart';
 import 'recipe_detail_page.dart';
@@ -35,165 +36,105 @@ class _HomeTabState extends State<HomeTab> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.orange[200] : const Color(0xFF4E342E);
+    final cardColor = isDark ? const Color(0xFF2C2C2C) : Colors.white;
+
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFFFFF9F2), Color(0xFFFFF1E6)],
+          colors: isDark 
+            ? [const Color(0xFF121212), const Color(0xFF1E1E1E)]
+            : [const Color(0xFFFFF9F2), const Color(0xFFFFF1E6)],
         ),
       ),
       child: CustomScrollView(
         slivers: [
+          // APP BAR
           SliverAppBar(
-            expandedHeight: 240.0,
+            expandedHeight: 340.0,
             floating: true,
             pinned: true,
             elevation: 0,
+            backgroundColor: isDark ? const Color(0xFF263238) : const Color(0xFFFF9D6C),
             flexibleSpace: FlexibleSpaceBar(
-              centerTitle: true,
-              title: Container(),
               background: Container(
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Color(0xFFFF9D6C), Color(0xFFFFD05B)],
+                    colors: isDark 
+                      ? [const Color(0xFF37474F), const Color(0xFF263238)]
+                      : [const Color(0xFFFF9D6C), const Color(0xFFFFD05B)],
                   ),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 50, left: 24, right: 24),
+                  padding: const EdgeInsets.only(top: 60, left: 24, right: 24),
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
                     children: [
-                      const Padding(
-                        padding: EdgeInsets.only(bottom: 4),
-                        child: Text(
-                          '🍽️ Ghibli Kitchen',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 28,
-                            shadows: [Shadow(blurRadius: 10, color: Colors.black26)],
-                          ),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.25),
-                          borderRadius: BorderRadius.circular(30),
-                          border: Border.all(color: Colors.white.withOpacity(0.3)),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.auto_awesome, color: Colors.white, size: 16),
-                            SizedBox(width: 6),
-                            Text(
-                              'Studio Ghibli',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                            SizedBox(width: 6),
-                            Icon(Icons.favorite, color: Colors.white, size: 14),
-                          ],
+                      const Text(
+                        '🍽️ Ghibli Kitchen',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 28,
                         ),
                       ),
                       const SizedBox(height: 16),
+                      // PESQUISA
                       Container(
                         height: 45,
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: isDark ? const Color(0xFF2C2C2C) : Colors.white,
                           borderRadius: BorderRadius.circular(15),
-                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10)],
                         ),
                         child: TextField(
-                          onChanged: (value) {
-                            setState(() {
-                              _searchQuery = value;
-                            });
-                          },
-                          decoration: const InputDecoration(
-                            hintText: 'Pesquisar receitas mágicas...',
-                            prefixIcon: Icon(Icons.search, color: Colors.orange),
+                          onChanged: (value) => setState(() => _searchQuery = value),
+                          style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                          decoration: InputDecoration(
+                            hintText: 'Pesquisar receitas...',
+                            hintStyle: TextStyle(color: isDark ? Colors.white54 : Colors.grey),
+                            prefixIcon: const Icon(Icons.search, color: Colors.orange),
                             border: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(vertical: 10),
+                            contentPadding: const EdgeInsets.symmetric(vertical: 10),
                           ),
                         ),
                       ),
+                      const SizedBox(height: 12),
+                      _buildSuggestionButton(),
                     ],
                   ),
                 ),
               ),
             ),
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
-            ),
           ),
 
+          // TÍTULO E CATEGORIAS
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.all(24.0),
+              padding: const EdgeInsets.all(24),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const Text(
-                    'Bom apetite, fã do Studio Ghibli!',
-                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFF4E342E)),
-                    textAlign: TextAlign.center,
-                  ),
-                  const Text(
-                    'Descubra receitas mágicas dos filmes',
-                    style: TextStyle(fontSize: 15, color: Colors.brown),
-                    textAlign: TextAlign.center,
-                  ),
+                  Text('Bom apetite!', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: primaryTextColor)),
                   const SizedBox(height: 24),
-                  const Text(
-                    'Categorias',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF4E342E)),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
+                  Text('Categorias', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryTextColor)),
+                  const SizedBox(height: 16),
                   SizedBox(
                     height: 100,
                     child: ListView(
                       scrollDirection: Axis.horizontal,
-                      children: widget.categories.map((category) {
-                        return GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => CategoryPage(
-                                  categoryName: category['name']!,
-                                  categoryEmoji: category['emoji']!,
-                                  recipes: widget.recipes.where((r) => r['category'] == category['name']).toList(),
-                                  favoriteIds: widget.favoriteIds,
-                                  onToggleFavorite: widget.onToggleFavorite,
-                                ),
-                              ),
-                            );
-                          },
-                          child: _buildCategoryItem(category['emoji']!, category['name']!),
-                        );
-                      }).toList(),
+                      shrinkWrap: true,
+                      children: widget.categories.map((cat) => _buildCategoryItem(cat, isDark)).toList(),
                     ),
                   ),
                   const SizedBox(height: 24),
-                  const Text(
-                    'Receitas em Destaque',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF4E342E)),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
+                  Text('Receitas em Destaque', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryTextColor)),
                 ],
               ),
             ),
           ),
 
+          // GRID DE RECEITAS
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             sliver: SliverGrid(
@@ -206,20 +147,36 @@ class _HomeTabState extends State<HomeTab> {
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
                   final recipe = _filteredRecipes[index];
+                  final isFavorite = widget.favoriteIds.contains(recipe['id']);
                   return GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => RecipeDetailPage(
-                            recipe: recipe,
-                            isFavorite: widget.favoriteIds.contains(recipe['id']),
-                            onToggleFavorite: () => widget.onToggleFavorite(recipe['id']),
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => RecipeDetailPage(recipe: recipe, isFavorite: isFavorite, onToggleFavorite: () => widget.onToggleFavorite(recipe['id'])))),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: cardColor,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                              child: Image.network(recipe['imageUrl'], fit: BoxFit.cover, width: double.infinity),
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                    child: _buildRecipeCard(recipe),
+                          Padding(
+                            padding: const EdgeInsets.all(10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(recipe['title'], style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: isDark ? Colors.white : const Color(0xFF4E342E)), maxLines: 2),
+                                Text(recipe['movie'].toUpperCase(), style: const TextStyle(fontSize: 8, color: Colors.orange, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   );
                 },
                 childCount: _filteredRecipes.length,
@@ -227,34 +184,22 @@ class _HomeTabState extends State<HomeTab> {
             ),
           ),
 
+          // SEÇÃO DE FILMES
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.all(24.0),
+              padding: const EdgeInsets.all(24),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const Text(
-                    'Filmes em Destaque',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF4E342E)),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
+                  Text('Filmes Ghibli', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryTextColor)),
+                  const SizedBox(height: 16),
                   SizedBox(
                     height: 110,
                     child: ListView(
                       scrollDirection: Axis.horizontal,
-                      children: widget.movies.map((movie) {
-                        return GestureDetector(
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => MovieDetailPage(movie: movie)),
-                          ),
-                          child: _buildMovieCard(movie['title'], movie['emoji']),
-                        );
-                      }).toList(),
+                      children: widget.movies.map((m) => _buildMovieCard(m, isDark, cardColor)).toList(),
                     ),
                   ),
-                  const SizedBox(height: 80),
+                  const SizedBox(height: 60),
                 ],
               ),
             ),
@@ -264,140 +209,43 @@ class _HomeTabState extends State<HomeTab> {
     );
   }
 
-  Widget _buildCategoryItem(String emoji, String label) {
+  // MÉTODOS AUXILIARES SIMPLIFICADOS
+  Widget _buildCategoryItem(Map<String, String> category, bool isDark) {
     return Padding(
-      padding: const EdgeInsets.only(right: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Column(
         children: [
           Container(
-            width: 70,
-            height: 70,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))],
-              border: Border.all(color: const Color(0xFFFFF3E0), width: 2),
-            ),
-            child: Center(child: Text(emoji, style: const TextStyle(fontSize: 32))),
+            width: 60, height: 60,
+            decoration: BoxDecoration(color: isDark ? Colors.white10 : Colors.white, shape: BoxShape.circle),
+            child: Center(child: Text(category['emoji']!, style: const TextStyle(fontSize: 24))),
           ),
-          const SizedBox(height: 8),
-          Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.brown)),
+          const SizedBox(height: 4),
+          Text(category['name']!, style: TextStyle(fontSize: 10, color: isDark ? Colors.white70 : Colors.brown)),
         ],
       ),
     );
   }
 
-  Widget _buildRecipeCard(Map<String, dynamic> recipe) {
+  Widget _buildMovieCard(Map<String, dynamic> movie, bool isDark, Color cardColor) {
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(25),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))],
-      ),
+      width: 140, margin: const EdgeInsets.only(right: 12),
+      decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(15)),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Expanded(
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
-              child: Image.network(
-                recipe['imageUrl'],
-                fit: BoxFit.cover,
-                width: double.infinity,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: Colors.grey[300],
-                    child: const Center(
-                      child: Icon(Icons.broken_image, size: 40, color: Colors.grey),
-                    ),
-                  );
-                },
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Container(
-                    color: Colors.grey[200],
-                    child: const Center(
-                      child: CircularProgressIndicator(),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        recipe['title'],
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF4E342E)),
-                        maxLines: 2,
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        widget.onToggleFavorite(recipe['id']);
-                      },
-                      child: Icon(
-                        widget.favoriteIds.contains(recipe['id']) ? Icons.favorite : Icons.favorite_border,
-                        color: widget.favoriteIds.contains(recipe['id']) ? Colors.red : Colors.grey,
-                        size: 18,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(recipe['movie'].toUpperCase(), style: const TextStyle(fontSize: 9, color: Colors.grey, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildInfo(Icons.bolt, recipe['difficulty']),
-                    _buildInfo(Icons.access_time, recipe['time']),
-                  ],
-                ),
-              ],
-            ),
-          ),
+          Text(movie['emoji'], style: const TextStyle(fontSize: 30)),
+          Text(movie['title'], textAlign: TextAlign.center, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.brown)),
         ],
       ),
     );
   }
 
-  Widget _buildInfo(IconData icon, String text) {
-    return Row(
-      children: [
-        Icon(icon, size: 12, color: Colors.orange),
-        const SizedBox(width: 4),
-        Text(text, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-      ],
-    );
-  }
-
-  Widget _buildMovieCard(String title, String emoji) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 16),
-      child: Container(
-        width: 160,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFFFF3E0)),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(emoji, style: const TextStyle(fontSize: 36)),
-            const SizedBox(height: 8),
-            Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF4E342E)), maxLines: 2),
-          ],
-        ),
-      ),
+  Widget _buildSuggestionButton() {
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => SuggestionPage(recipes: widget.recipes, favoriteIds: widget.favoriteIds, onToggleFavorite: widget.onToggleFavorite))),
+      child: const Text('Sugestão Mágica ✨', style: TextStyle(color: Colors.white)),
     );
   }
 }

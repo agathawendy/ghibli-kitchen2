@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'home_tab.dart';
 import 'favorites_tab.dart';
 import 'profile_tab.dart';
-import 'main.dart' show LoginPage;
+import 'login_page.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -217,13 +217,13 @@ class _HomeScreenState extends State<HomeScreen> {
     
     try {
       // 1. Fetch Recipes (Should be publicly readable)
-      var recipesData = await Supabase.instance.client.from('recipes').select();
+      var recipesData = await Supabase.instance.client.from('recipes').select('id, title, movie, category, difficulty, time, image_url, ingredients, instructions');
 
       // Seed data if database is empty
       if (recipesData.isEmpty) {
         try {
           await Supabase.instance.client.from('recipes').insert(_initialRecipes);
-          recipesData = await Supabase.instance.client.from('recipes').select();
+          recipesData = await Supabase.instance.client.from('recipes').select('id, title, movie, category, difficulty, time, image_url, ingredients, instructions');
         } catch (seedError) {
           debugPrint('Erro ao semear dados: $seedError');
           // If seeding fails, we still continue with empty or existing data
@@ -245,7 +245,7 @@ class _HomeScreenState extends State<HomeScreen> {
         try {
           final profileData = await Supabase.instance.client
               .from('profiles')
-              .select()
+              .select('id, full_name, avatar_url')
               .eq('id', user.id)
               .maybeSingle();
           _userData = profileData;
@@ -382,6 +382,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     totalRecipes: recipes.length,
                     totalMovies: movies.length,
                     favoriteRecipes: _favoriteRecipes,
+                    totalRecipesList: recipes,
+                    favoriteIds: _favoriteIds,
+                    onToggleFavorite: _toggleFavorite,
                     onLogout: () {
                       Navigator.of(context).pushAndRemoveUntil(
                         MaterialPageRoute(

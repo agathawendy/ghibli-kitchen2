@@ -27,12 +27,19 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 1. CAPTURAMOS O TEMA ATUAL
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = Theme.of(context).colorScheme.surface;
+    final textColor = isDark ? Colors.white : const Color(0xFF4E342E);
+
     return Scaffold(
+      backgroundColor: bgColor, // Usa o fundo do tema (claro ou escuro)
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
             expandedHeight: 250,
             pinned: true,
+            iconTheme: const IconThemeData(color: Colors.white), // Seta de voltar sempre branca
             flexibleSpace: FlexibleSpaceBar(
               background: Stack(
                 fit: StackFit.expand,
@@ -42,7 +49,7 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
-                        color: Colors.grey[300],
+                        color: isDark ? Colors.grey[900] : Colors.grey[300],
                         child: const Center(
                           child: Icon(Icons.broken_image, size: 50),
                         ),
@@ -54,7 +61,10 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: [Colors.transparent, Colors.black.withOpacity(0.5)],
+                        colors: [
+                          Colors.transparent, 
+                          isDark ? Colors.black.withOpacity(0.8) : Colors.black.withOpacity(0.5)
+                        ],
                       ),
                     ),
                   ),
@@ -79,19 +89,19 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
           SliverToBoxAdapter(
             child: Container(
               padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFF9F2),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              decoration: BoxDecoration(
+                color: bgColor, // REMOVIDA A COR FIXA BEGE
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     widget.recipe['title'],
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF4E342E),
+                      color: textColor, // Cor de texto adaptável
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -107,17 +117,18 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildInfoItem(Icons.access_time, widget.recipe['time']),
-                      _buildInfoItem(Icons.bolt, widget.recipe['difficulty']),
-                      _buildInfoItem(Icons.star, '4.9'),
+                      _buildInfoItem(Icons.access_time, widget.recipe['time'], textColor),
+                      _buildInfoItem(Icons.bolt, widget.recipe['difficulty'], textColor),
+                      _buildInfoItem(Icons.star, '4.9', textColor),
                     ],
                   ),
                   const SizedBox(height: 20),
-                  const Text(
+                  Text(
                     'Ingredientes',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
+                      color: textColor,
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -131,7 +142,10 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                           Expanded(
                             child: Text(
                               ingredient,
-                              style: const TextStyle(fontSize: 14),
+                              style: TextStyle(
+                                fontSize: 14, 
+                                color: textColor.withOpacity(0.9)
+                              ),
                             ),
                           ),
                         ],
@@ -139,11 +153,12 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  const Text(
+                  Text(
                     'Modo de Preparo',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
+                      color: textColor,
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -156,7 +171,7 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                           Container(
                             width: 24,
                             height: 24,
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               color: Colors.orange,
                               shape: BoxShape.circle,
                             ),
@@ -175,7 +190,10 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                           Expanded(
                             child: Text(
                               entry.value,
-                              style: const TextStyle(fontSize: 14),
+                              style: TextStyle(
+                                fontSize: 14, 
+                                color: textColor.withOpacity(0.9)
+                              ),
                             ),
                           ),
                         ],
@@ -191,16 +209,17 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
     );
   }
 
-  Widget _buildInfoItem(IconData icon, String text) {
+  Widget _buildInfoItem(IconData icon, String text, Color textColor) {
     return Column(
       children: [
         Icon(icon, color: Colors.orange, size: 24),
         const SizedBox(height: 4),
         Text(
           text,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w500,
+            color: textColor.withOpacity(0.7), // Texto dos itens de info adaptável
           ),
         ),
       ],
